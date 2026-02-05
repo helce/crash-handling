@@ -33,6 +33,10 @@ cfg_if::cfg_if! {
         #[repr(C)]
         #[doc(hidden)]
         pub struct __jmp_buf([u64; 22]);
+    } else if #[cfg(target_arch = "e2k")] {
+        #[repr(C)]
+        #[doc(hidden)]
+        pub struct __jmp_buf([u64; 10]);
     }
 }
 
