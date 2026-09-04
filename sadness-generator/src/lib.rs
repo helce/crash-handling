@@ -159,10 +159,16 @@ pub unsafe fn raise_floating_point_exception() -> ! {
             );
             divisor
         }
-        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
+        #[cfg(target_arch = "s390x")]
         {
-            // Unfortunately ARM by default will not raise SIGFPE on divide
-            // by 0 and just return 0, so we just explicitly raise here for now
+            asm!("lhi 2,0", "lhi 3,0", "dr  2,2");
+            0
+        }
+        #[cfg(any(target_arch = "arm", target_arch = "aarch64", target_arch = "riscv64"))]
+        {
+            // Unfortunately ARM and RISC-V by default will not raise SIGFPE on
+            // divide by 0 and just return 0, so we just explicitly raise here
+            // for now
             libc::raise(libc::SIGFPE);
             0
         }
@@ -196,6 +202,10 @@ pub unsafe fn raise_illegal_instruction() -> ! {
         #[cfg(target_arch = "e2k")]
         // incorrect register for this operation type
         asm!("adds 0, 0, %ctpr1");
+        #[cfg(target_arch = "riscv64")]
+        asm!(".word 0x00000000");
+        #[cfg(target_arch = "s390x")]
+        asm!(".word 0x0000");
     }
 
     std::process::abort()
@@ -261,6 +271,10 @@ pub unsafe fn raise_trap() -> ! {
         asm!(".inst 0xd4200000");
         #[cfg(target_arch = "e2k")]
         asm!("setsft");
+        #[cfg(target_arch = "riscv64")]
+        asm!("ebreak");
+        #[cfg(target_arch = "s390x")]
+        asm!("trap2")
     }
 
     std::process::abort()

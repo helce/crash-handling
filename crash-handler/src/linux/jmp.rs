@@ -41,6 +41,24 @@ cfg_if::cfg_if! {
         #[repr(C)]
         #[doc(hidden)]
         pub struct __jmp_buf([u64; 10]);
+    } else if #[cfg(target_arch = "riscv64")] {
+        #[repr(C)]
+        #[doc(hidden)]
+        #[allow(non_camel_case_types)]
+        pub struct __jmp_buf {
+            __pc: u64,
+            __regs: [u64; 12],
+            __sp: u64,
+            __fpregs: [f64; 12],
+        }
+    } else if #[cfg(target_arch = "s390x" )] {
+        #[repr(C)]
+        #[doc(hidden)]
+        #[allow(non_camel_case_types)]
+        pub struct __jmp_buf{
+            __gregs: [u64; 10],
+            __fpregs: [f64; 8],
+        }
     }
 }
 
