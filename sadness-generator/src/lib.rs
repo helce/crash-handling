@@ -159,6 +159,15 @@ pub unsafe fn raise_floating_point_exception() -> ! {
             libc::raise(libc::SIGFPE);
             0
         }
+        #[cfg(target_arch = "e2k")]
+        {
+            let mut divisor: u32;
+            asm!(
+                "sdivs 0, 0, {div}",
+                div = out(reg) divisor
+            );
+            divisor
+        }
     };
 
     println!("we won't get here because we've raised a floating point exception: {ohno}");
@@ -176,6 +185,9 @@ pub unsafe fn raise_illegal_instruction() -> ! {
     asm!("ud2");
     #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
     asm!("udf #0");
+    #[cfg(target_arch = "e2k")]
+    // incorrect register for this operation type
+    asm!("adds 0, 0, %ctpr1");
 
     std::process::abort()
 }
@@ -235,6 +247,8 @@ pub unsafe fn raise_trap() -> ! {
     asm!(".inst 0xe7f001f0");
     #[cfg(target_arch = "aarch64")]
     asm!(".inst 0xd4200000");
+    #[cfg(target_arch = "e2k")]
+    asm!("setsft");
 
     std::process::abort()
 }
