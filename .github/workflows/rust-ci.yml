@@ -16,7 +16,11 @@ jobs:
     name: Lint
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14]
+        os:
+          - ubuntu-24.04
+          - windows-2022
+          - macos-14
+          - ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +43,11 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14]
+        os:
+          - ubuntu-24.04
+          - windows-2022
+          - macos-14
+          - ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -47,27 +55,28 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fetch
       - name: cargo test build
-        run: cargo build --tests
+        run: cargo build --tests --all-features
       - name: cargo test
-        run: cargo test
+        run: cargo test --all-features
 
   build-android:
     name: Build sources
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         job:
-          #- { target: aarch64-unknown-linux-gnu, toolchain: stable }
-          - { target: aarch64-unknown-linux-musl, toolchain: stable }
           - { target: aarch64-linux-android, toolchain: stable }
+          - { target: arm-unknown-linux-gnueabihf, toolchain: stable }
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.job.toolchain }}
           target: ${{ matrix.job.target }}
-      - uses: Swatinem/rust-cache@v2
+      # - uses: Swatinem/rust-cache@v2
+      #   with:
+      #     key: "1.86.0"
       - name: Build
         # We need to install cross from git, because https://github.com/cross-rs/cross/issues/1222
         # is still unreleased (it's been almost a year since the last release)
@@ -75,18 +84,18 @@ jobs:
         # home, really?) have a higher MSRV...so...
         run: |
           cargo install cross --git https://github.com/cross-rs/cross --rev 185398b
-          cross build --target ${{ matrix.job.target }} --verbose --all-targets
+          cross build --release --target ${{ matrix.job.target }} --verbose --all-targets
 
   deny-check:
     name: cargo-deny
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@v2
 
   publish-check:
     name: Publish Check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -100,7 +109,7 @@ jobs:
           cargo publish --dry-run --manifest-path sadness-generator/Cargo.toml
 
   all:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [lint, test, build-android, deny-check, publish-check]
     steps:
       - run: echo "All test jobs passed"

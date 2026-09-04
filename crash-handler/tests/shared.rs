@@ -75,6 +75,7 @@ pub fn handles_crash(flavor: SadnessFlavor) {
                             SadnessFlavor::Segfault => ExceptionCode::Segv,
                             SadnessFlavor::StackOverflow { .. }=> ExceptionCode::StackOverflow,
                             SadnessFlavor::Trap => ExceptionCode::Trap,
+                            SadnessFlavor::HeapCorruption => ExceptionCode::HeapCorruption,
                         };
 
                         assert_eq!(
@@ -99,7 +100,7 @@ pub fn handles_crash(flavor: SadnessFlavor) {
 
         #[inline(never)]
         unsafe fn indirect(flavor: SadnessFlavor) {
-            flavor.make_sad();
+            unsafe { flavor.make_sad() };
         }
 
         indirect(flavor);

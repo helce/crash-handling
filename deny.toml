@@ -3,6 +3,8 @@ targets = [
     "x86_64-unknown-linux-gnu",
     "x86_64-unknown-linux-musl",
     "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
 ]
 all-features = true
 # This crate is not published, exclude it since it triggers various warnings
@@ -10,34 +12,31 @@ all-features = true
 exclude = ["minidumper-test"]
 
 [advisories]
-version = 2
 ignore = []
 
 [licenses]
-version = 2
 allow = ["MIT", "Apache-2.0"]
 confidence-threshold = 0.8
-exceptions = [{ allow = ["Unicode-DFS-2016"], name = "unicode-ident" }]
+exceptions = [{ allow = ["Unicode-3.0"], name = "unicode-ident" }]
 
 [bans]
 multiple-versions = "deny"
 deny = [
     # Incredibly heavyweight, we should never have a dependency on this
-    { name = "windows" },
+    "windows",
     # We should never have a dependency on openssl
-    { name = "openssl-sys" },
+    "openssl-sys",
 ]
 skip = [
     # The crate is in the repo, so we have the path, but it's also a crates.io
     # dependency
-    { name = "crash-context" },
+    "crash-context",
 ]
 skip-tree = [
-    # parking_lot uses an old version https://github.com/Amanieu/parking_lot/pull/425,
-    # my original PR didn't have windows-targets since it's not needed at all,
-    # but it is what it is
-    { name = "windows-targets", version = "=0.48.5" },
+    { crate = "polling@3.7.4", reason = "pulls in old rustix/linux-raw-sys" },
 ]
+
+[bans.workspace-dependencies]
 
 [sources]
 unknown-registry = "deny"

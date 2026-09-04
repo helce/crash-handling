@@ -37,6 +37,8 @@ pub enum Signal {
     Purecall,
     #[cfg(windows)]
     InvalidParameter,
+    #[cfg(windows)]
+    HeapCorruption,
     #[cfg(target_os = "macos")]
     Guard,
 }
@@ -58,6 +60,8 @@ impl fmt::Display for Signal {
             Self::Purecall => "purecall",
             #[cfg(windows)]
             Self::InvalidParameter => "invalid-parameter",
+            #[cfg(windows)]
+            Self::HeapCorruption => "heap-corruption",
             #[cfg(target_os = "macos")]
             Self::Guard => "guard",
         })
@@ -67,8 +71,9 @@ impl fmt::Display for Signal {
 use std::{
     path::PathBuf,
     sync::{
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
-        mpsc, Arc, Mutex,
+        mpsc,
     },
 };
 
@@ -290,6 +295,7 @@ pub fn get_native_cpu() -> Cpu {
     }
 }
 
+#[allow(clippy::unnecessary_cast)]
 pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
     use minidump::CrashReason;
     use minidump_common::errors;
@@ -309,8 +315,7 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
         ($expected:pat) => {
             assert!(
                 matches!(crash_reason, $expected),
-                "crash reason: {:?}",
-                crash_reason
+                "crash reason: {crash_reason:?}",
             );
         };
     }
@@ -330,14 +335,27 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
                 ));
             }
             Signal::Fpe => {
-                verify!(CrashReason::LinuxSigfpe(
-                    errors::ExceptionCodeLinuxSigfpeKind::FPE_INTDIV
-                ));
+                if cfg!(not(any(target_arch = "aarch64", target_arch = "arm"))) {
+                    verify!(CrashReason::LinuxSigfpe(
+                        errors::ExceptionCodeLinuxSigfpeKind::FPE_INTDIV
+                    ));
+                } else {
+                    verify!(CrashReason::LinuxGeneral(
+                        errors::ExceptionCodeLinux::SIGFPE,
+                        4294967290
+                    ));
+                }
             }
             Signal::Illegal => {
-                verify!(CrashReason::LinuxSigill(
-                    errors::ExceptionCodeLinuxSigillKind::ILL_ILLOPN
-                ));
+                if cfg!(not(any(target_arch = "aarch64", target_arch = "arm"))) {
+                    verify!(CrashReason::LinuxSigill(
+                        errors::ExceptionCodeLinuxSigillKind::ILL_ILLOPN
+                    ));
+                } else {
+                    verify!(CrashReason::LinuxSigill(
+                        errors::ExceptionCodeLinuxSigillKind::ILL_ILLOPC
+                    ));
+                }
             }
             Signal::Segv => {
                 verify!(CrashReason::LinuxSigsegv(
@@ -356,13 +374,19 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
                 ));
             }
             Signal::Trap => {
-                verify!(CrashReason::LinuxGeneral(
-                    errors::ExceptionCodeLinux::SIGTRAP,
-                    _
-                ));
+                if cfg!(not(any(target_arch = "aarch64", target_arch = "arm"))) {
+                    verify!(CrashReason::LinuxGeneral(
+                        errors::ExceptionCodeLinux::SIGTRAP,
+                        _
+                    ));
+                } else {
+                    verify!(CrashReason::LinuxSigtrap(
+                        errors::ExceptionCodeLinuxSigtrapKind::TRAP_BRKPT
+                    ));
+                }
             }
             #[cfg(windows)]
-            Signal::Purecall | Signal::InvalidParameter => {
+            Signal::Purecall | Signal::InvalidParameter | Signal::HeapCorruption => {
                 unreachable!("windows only");
             }
             #[cfg(target_os = "macos")]
@@ -389,7 +413,7 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
                     errors::ExceptionCodeWindowsAccessType::WRITE
                 ));
 
-                assert_eq!(crash_address, sadness_generator::SEGFAULT_ADDRESS as _);
+                assert_eq!(crash_address, sadness_generator::SEGFAULT_ADDRESS as u64);
             }
             Signal::StackOverflow | Signal::StackOverflowCThread => {
                 verify!(CrashReason::WindowsGeneral(
@@ -408,6 +432,10 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
             #[cfg(windows)]
             Signal::InvalidParameter => {
                 assert_eq!(crash_reason, CrashReason::from_windows_error(0xc000000d));
+            }
+            #[cfg(windows)]
+            Signal::HeapCorruption => {
+                assert_eq!(crash_reason, CrashReason::from_windows_error(0xc0000374));
             }
             #[cfg(unix)]
             Signal::Bus => {
@@ -468,7 +496,7 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
                     errors::ExceptionCodeMacBadAccessKernType::KERN_INVALID_ADDRESS,
                 ));
 
-                assert_eq!(crash_address, sadness_generator::SEGFAULT_ADDRESS as _);
+                assert_eq!(crash_address, sadness_generator::SEGFAULT_ADDRESS as u64);
             }
             Signal::StackOverflow | Signal::StackOverflowCThread => {
                 verify!(CrashReason::MacBadAccessKern(
@@ -515,7 +543,7 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
                 }
             }
             #[cfg(windows)]
-            Signal::Purecall | Signal::InvalidParameter => {
+            Signal::Purecall | Signal::InvalidParameter | Signal::HeapCorruption => {
                 unreachable!("windows only");
             }
         },
