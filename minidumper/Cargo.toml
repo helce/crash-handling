@@ -1,6 +1,6 @@
 [package]
 name = "minidumper"
-version = "0.8.1"
+version = "0.8.2"
 description = "IPC impl for creating a minidump for a crashed process"
 repository = "https://github.com/EmbarkStudios/crash-handling"
 authors = [
@@ -38,7 +38,7 @@ uds = "0.4"
 
 [target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
 # Nicer binary interop, keep aligned with minidump-writer
-scroll = { version = "0.11", features = ["derive"] }
+scroll = { version = "0.12", features = ["derive"] }
 
 [dev-dependencies]
 # Diskwrite example
