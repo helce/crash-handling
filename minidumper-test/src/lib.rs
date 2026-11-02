@@ -291,6 +291,8 @@ pub fn get_native_cpu() -> Cpu {
             Cpu::Arm64
         } else if #[cfg(target_arch = "arm")] {
             Cpu::Arm
+        } else if #[cfg(target_arch = "e2k")] {
+            Cpu::E2k
         }
     }
 }
@@ -347,7 +349,7 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
                 }
             }
             Signal::Illegal => {
-                if cfg!(not(any(target_arch = "aarch64", target_arch = "arm"))) {
+                if cfg!(not(any(target_arch = "aarch64", target_arch = "arm", target_arch = "e2k"))) {
                     verify!(CrashReason::LinuxSigill(
                         errors::ExceptionCodeLinuxSigillKind::ILL_ILLOPN
                     ));
@@ -371,10 +373,11 @@ pub fn assert_minidump(md_buf: &[u8], signal: Signal) {
                 verify!(CrashReason::LinuxSigsegv(
                     errors::ExceptionCodeLinuxSigsegvKind::SEGV_ACCERR
                         | errors::ExceptionCodeLinuxSigsegvKind::SEGV_MAPERR
+                        | errors::ExceptionCodeLinuxSigsegvKind::SEGV_BNDERR
                 ));
             }
             Signal::Trap => {
-                if cfg!(not(any(target_arch = "aarch64", target_arch = "arm"))) {
+                if cfg!(not(any(target_arch = "aarch64", target_arch = "arm", target_arch = "e2k"))) {
                     verify!(CrashReason::LinuxGeneral(
                         errors::ExceptionCodeLinux::SIGTRAP,
                         _
